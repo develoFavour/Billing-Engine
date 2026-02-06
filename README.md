@@ -14,16 +14,31 @@ This engine is built for scale, using a **Dual-Persistence Strategy**:
 - **Graceful Shutdown**: Handles OS signals to ensure no data loss during worker flushes or server restarts.
 - **Scalable Schema**: UUID-based multi-tenant design with support for flexible pricing tiers.
 
-## 🔌 Tech Stack
-- **Language**: Golang 1.21+
-- **API Framework**: Gin Gonic
-- **Primary DB**: PostgreSQL (pgx/v5)
-- **Caching/Metering**: Redis (go-redis/v9)
-- **Infrastructure**: Docker & Docker Compose
-- **Concurrency**: Goroutines, Tickers, Context Management
+## 🧪 Manual Walkthrough (Live Demo)
 
-## 🛠️ Getting Started
+You can demonstrate the full "Meter-to-Bill" lifecycle using these commands:
 
+### 1. 📥 Record Usage (Hits Redis)
+Send a metric event for a customer. This is processed instantly via Redis.
+```powershell
+Invoke-RestMethod -Uri "http://localhost:8080/api/v1/usage" -Method Post -Body '{"customer_id": "YOUR_CUSTOMER_ID", "resource_type": "api_call", "quantity": 100}' -ContentType "application/json"
+```
+
+### 2. 💰 Check Estimated Bill (Real-time Calculation)
+Calculate the bill by combining Redis usage with Postgres pricing metadata.
+```powershell
+Invoke-RestMethod -Uri "http://localhost:8080/api/v1/billing/YOUR_CUSTOMER_ID" -Method Get
+```
+
+### ⚙️ 3. Background Aggregation (Automatic)
+Watch the server logs. Every 60 seconds, the **Aggregator Worker** will:
+1. Scan Redis for active meters.
+2. Flush the totals to the `usage_records` table in PostgreSQL.
+3. Reset Redis meters to zero.
+
+---
+
+## 🏗️ Technical Highlights
 ### Prerequisites
 - Go 1.21+
 - Docker & Docker Compose
@@ -53,4 +68,4 @@ make test
 ```
 
 ---
-*Created by Favour Opia as part of a technical portfolio for the Canonical Golang Software Engineer position.*
+
