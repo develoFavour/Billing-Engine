@@ -1,6 +1,6 @@
 module github.com/develoFavour/billing-engine-go
 
-go 1.24.0
+go 1.21
 
 require (
 	github.com/gin-gonic/gin v1.11.0
