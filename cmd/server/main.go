@@ -15,6 +15,7 @@ import (
 	"github.com/develoFavour/billing-engine-go/internal/repository/postgres"
 	"github.com/develoFavour/billing-engine-go/internal/repository/redis"
 	"github.com/develoFavour/billing-engine-go/internal/service"
+	"github.com/develoFavour/billing-engine-go/internal/worker"
 	"github.com/develoFavour/billing-engine-go/pkg/database"
 	"github.com/gin-gonic/gin"
 )
@@ -52,6 +53,10 @@ func main() {
 
 	billingService := service.NewBillingService(usageRepo, meterRepo)
 	billingHandler := handlers.NewBillingHandler(billingService)
+
+	// 5. Initialize & Start Background Workers
+	aggregator := worker.NewAggregatorWorker(billingService, 1*time.Minute)
+	go aggregator.Start(ctx)
 
 	router := gin.Default()
 

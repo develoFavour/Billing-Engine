@@ -46,3 +46,15 @@ func (r *meterRepository) ResetUsage(ctx context.Context, customerID string, res
 	key := fmt.Sprintf("usage:%s:%s", customerID, resourceType)
 	return r.rdb.Del(ctx, key).Err()
 }
+
+func (r *meterRepository) ScanKeys(ctx context.Context, pattern string) ([]string, error) {
+	var keys []string
+	iter := r.rdb.Scan(ctx, 0, pattern, 0).Iterator()
+	for iter.Next(ctx) {
+		keys = append(keys, iter.Val())
+	}
+	if err := iter.Err(); err != nil {
+		return nil, err
+	}
+	return keys, nil
+}

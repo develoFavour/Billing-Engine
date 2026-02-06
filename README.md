@@ -2,20 +2,25 @@
 
 A high-performance, scalable billing microservice built with Golang. This service is designed to turn real-time usage metrics into billable amounts, providing a standardized capability for enterprise-grade billing cycles.
 
-## 🚀 Built With
+## 🚀 High-Performance Architecture
+This engine is built for scale, using a **Dual-Persistence Strategy**:
+- **Hot Path (Ingestion)**: Usage metrics are atomically incremented in **Redis** via `INCRBYFLOAT`. This allows for sub-millisecond response times and handles high-concurrency metric ingestion without overloading the primary database.
+- **Cold Path (Persistence)**: A background **Aggregator Worker** (running in a dedicated goroutine) periodically flushes totals from Redis to **PostgreSQL**. This ensures long-term reliability and data integrity while keeping the "Hot Path" fast.
+
+## 🏗️ Technical Highlights
+- **Distributed Metering**: Real-time usage tracking with atomic Redis operations.
+- **Worker Pattern**: Decoupled background processing using Go's concurrency primitives (`goroutines`, `channels`, `tickers`).
+- **Repository Pattern**: Clean abstraction of data layers (Postgres / Redis / Mock).
+- **Graceful Shutdown**: Handles OS signals to ensure no data loss during worker flushes or server restarts.
+- **Scalable Schema**: UUID-based multi-tenant design with support for flexible pricing tiers.
+
+## 🔌 Tech Stack
 - **Language**: Golang 1.21+
 - **API Framework**: Gin Gonic
-- **Persistence**: PostgreSQL (pgx/v5 for high performance)
-- **Caching**: Redis (Real-time metering cache)
+- **Primary DB**: PostgreSQL (pgx/v5)
+- **Caching/Metering**: Redis (go-redis/v9)
 - **Infrastructure**: Docker & Docker Compose
-- **Quality**: Graceful shutdown, Repository Pattern, Dependency Injection
-
-## 🏗️ Architecture
-The project follows the standard Go project layout:
-- `cmd/`: Entry points for the application.
-- `internal/`: Private application and library code.
-- `pkg/`: Public library code that can be used by other projects.
-- `migrations/`: SQL migration files.
+- **Concurrency**: Goroutines, Tickers, Context Management
 
 ## 🛠️ Getting Started
 

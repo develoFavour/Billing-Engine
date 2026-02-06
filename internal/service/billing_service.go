@@ -2,10 +2,14 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"strings"
+	"time"
 
 	"github.com/develoFavour/billing-engine-go/internal/models"
 	"github.com/develoFavour/billing-engine-go/internal/repository"
+	"github.com/google/uuid"
 )
 
 type BillingService interface {
@@ -42,7 +46,61 @@ func (s *billingService) GetEstimatedBill(ctx context.Context, customerID string
 
 func (s *billingService) AggregateUsage(ctx context.Context) error {
 	log.Println("Starting background usage aggregation...")
-	// Logic to scan all active Redis keys and "flush" them to Postgres
-	// This is a more advanced step we'll build in the backgrounds worker
+
+	// 1. Find all usage keys in Redis
+	keys, err := s.meterRepo.ScanKeys(ctx, "usage:*")
+	if err != nil {
+		return fmt.Errorf("failed to scan usage keys: %w", err)
+	}
+
+	for _, key := range keys {
+		// Key format: usage:customer_id:resource_type
+		parts := strings.Split(key, ":")
+		if len(parts) != 3 {
+			continue
+		}
+
+		customerIDStr := parts[1]
+		resourceType := models.ResourceType(parts[2])
+
+		customerID, err := uuid.Parse(customerIDStr)
+		if err != nil {
+			log.Printf("Invalid customer ID in Redis key %s: %v", key, err)
+			continue
+		}
+
+		// 2. Get the value
+		quantity, err := s.meterRepo.GetTotalUsage(ctx, customerIDStr, resourceType)
+		if err != nil {
+			log.Printf("Failed to get usage for key %s: %v", key, err)
+			continue
+		}
+
+		if quantity == 0 {
+			continue
+		}
+
+		// 3. Persist to Postgres
+		event := &models.UsageEvent{
+			ID:           uuid.New(),
+			CustomerID:   customerID,
+			ResourceType: resourceType,
+			Quantity:     quantity,
+			Timestamp:    time.Now().UTC(),
+		}
+
+		if err := s.usageRepo.Create(ctx, event); err != nil {
+			log.Printf("Failed to persist usage for customer %s: %v", customerID, err)
+			continue
+		}
+
+		// 4. Reset Redis (Clear the meter)
+		if err := s.meterRepo.ResetUsage(ctx, customerIDStr, resourceType); err != nil {
+			log.Printf("Failed to reset usage for customer %s in Redis: %v", customerID, err)
+		}
+
+		log.Printf("Aggregated %.2f units for customer %s", quantity, customerID)
+	}
+
 	return nil
 }
