@@ -8,12 +8,13 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func NewRedisClient(host, port, password string, db int) (*redis.Client, error) {
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     fmt.Sprintf("%s:%s", host, port),
-		Password: password,
-		DB:       db,
-	})
+func NewRedisClient(url string) (*redis.Client, error) {
+	opts, err := redis.ParseURL(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse redis url: %w", err)
+	}
+
+	rdb := redis.NewClient(opts)
 
 	// Verify connection
 	if err := rdb.Ping(context.Background()).Err(); err != nil {

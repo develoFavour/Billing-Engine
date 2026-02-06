@@ -37,7 +37,7 @@ func main() {
 	defer pool.Close()
 
 	// redis
-	rdb, err := database.NewRedisClient("127.0.0.1", "6379", "", 0)
+	rdb, err := database.NewRedisClient(cfg.RedisURL)
 	if err != nil {
 		log.Fatalf("failed to initialize redis: %v", err)
 	}
