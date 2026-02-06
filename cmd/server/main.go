@@ -2,13 +2,20 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
-
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/develoFavour/billing-engine-go/internal/api/handlers"
+	"github.com/develoFavour/billing-engine-go/internal/api/routes"
+	"github.com/develoFavour/billing-engine-go/internal/config"
+	"github.com/develoFavour/billing-engine-go/internal/repository/postgres"
+	"github.com/develoFavour/billing-engine-go/internal/repository/redis"
+	"github.com/develoFavour/billing-engine-go/internal/service"
+	"github.com/develoFavour/billing-engine-go/pkg/database"
 	"github.com/gin-gonic/gin"
 )
 
@@ -17,6 +24,32 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	// 1. Load Configuration
+	cfg := config.LoadConfig()
+
+	// 2. Initialize Database Connections
+	// postgres
+	pool, err := database.NewPostgresPool(cfg.DatabaseURL)
+	if err != nil {
+		log.Fatalf("failed to initialize postgres: %v", err)
+	}
+	defer pool.Close()
+
+	// redis
+	rdb, err := database.NewRedisClient("127.0.0.1", "6379", "", 0)
+	if err != nil {
+		log.Fatalf("failed to initialize redis: %v", err)
+	}
+	defer rdb.Close()
+
+	// 3. Initialize Repositories (Dependency Injection)
+	usageRepo := postgres.NewUsageRepository(pool)
+	meterRepo := redis.NewMeterRepository(rdb)
+
+	// 4. Initialize Services (Adding MeterRepo to UsageService)
+	usageService := service.NewUsageService(usageRepo, meterRepo)
+	usageHandler := handlers.NewUsageHandler(usageService)
+
 	router := gin.Default()
 
 	// Basic Health Check
@@ -24,11 +57,15 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{
 			"status": "healthy",
 			"time":   time.Now().Format(time.RFC3339),
+			"config": cfg.Env,
 		})
 	})
 
+	// Setup API Routes
+	routes.SetupRoutes(router, usageHandler)
+
 	srv := &http.Server{
-		Addr:    ":8080",
+		Addr:    fmt.Sprintf(":%s", cfg.ServerPort),
 		Handler: router,
 	}
 
