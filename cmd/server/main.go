@@ -50,6 +50,9 @@ func main() {
 	usageService := service.NewUsageService(usageRepo, meterRepo)
 	usageHandler := handlers.NewUsageHandler(usageService)
 
+	billingService := service.NewBillingService(usageRepo, meterRepo)
+	billingHandler := handlers.NewBillingHandler(billingService)
+
 	router := gin.Default()
 
 	// Basic Health Check
@@ -62,7 +65,7 @@ func main() {
 	})
 
 	// Setup API Routes
-	routes.SetupRoutes(router, usageHandler)
+	routes.SetupRoutes(router, usageHandler, billingHandler)
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%s", cfg.ServerPort),

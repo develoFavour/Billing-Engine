@@ -5,13 +5,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRoutes(router *gin.Engine, usageHandler *handlers.UsageHandler) {
+func SetupRoutes(router *gin.Engine, usageHandler *handlers.UsageHandler, billingHandlers *handlers.BillingHandler) {
 	v1 := router.Group("/api/v1")
 	{
 		usage := v1.Group("/usage")
 		{
 			usage.POST("", usageHandler.RecordUsage)
 			usage.GET("/:customer_id", usageHandler.GetUsage)
+		}
+		billing := v1.Group("/billing")
+		{
+			billing.GET("/:customer_id", billingHandlers.GetEstimatedBill)
 		}
 	}
 }
